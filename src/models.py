@@ -3,97 +3,100 @@ from flask_sqlalchemy import SQLAlchemy
 db = SQLAlchemy()
 
 class User(db.Model):
-    __tablename__ = 'user'
+    __tablename__ = 'User'
     id = db.Column(db.Integer, primary_key=True)
-    firstname = db.Column(db.String(25), nullable=False)
-    lastname = db.Column(db.String(25), nullable=False)
+    username = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(80), unique=False, nullable=False)
     is_active = db.Column(db.Boolean(), unique=False, nullable=False)
-    email = db.Column(db.String(25), nullable=False)
+    favpeople = db.relationship('FavPeople', backref="User", lazy=True)
+    favplanet = db.relationship('FavPlanet', backref="User", lazy=True) 
+
+    def __init__(self, username, password):
+        self.username = username
+        self.password = password
+        self.is_active = True
 
     def __repr__(self):
-        return f'<Character {self.email}>'
-    
+        return '<User %r>' % self.username
+
     def serialize(self):
         return {
             "id": self.id,
-            "firstname": self.firstname,
-            "lastname": self.lastname,
-            "email": self.email,
+            "username": self.username,
+            # do not serialize the password, its a security breach
         }
-class Characters(db.Model):
+
+class People(db.Model):
+    __tablename__ = 'People'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(20), unique=True, nullable=False)
-    height = db.Column(db.String(20), unique=True, nullable=False)
-    mass = db.Column(db.String(20), unique=True, nullable=False)
-    home = db.Column(db.String(20), unique=False, nullable=False)
-
-
+    name = db.Column(db.String(120), unique=False, nullable=False)
+    url = db.Column(db.String(80), unique=False, nullable=False)
+    favpeople = db.relationship('FavPeople', backref="People", lazy=True)
     def __repr__(self):
-        return f'<Characters {self.name}>'
-
+        return '<People %r>' % self.name
 
     def serialize(self):
         return {
             "id": self.id,
             "name": self.name,
-            "height": self.height,
-            "mass": self.mass,
-            "home": self.home
+            "url": self.url
         }
 
-class Planets(db.Model):
+class FavPeople(db.Model):
+    __tablename__ = 'FavPeople'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(25), unique=True, nullable=False)
-    gravity = db.Column(db.String(25), nullable=False)
-    population = db.Column(db.String(25))
-    climate = db.Column(db.String(25))
+    people_id = db.Column(db.Integer, db.ForeignKey("People.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("User.id"), nullable=False)
 
-    def __repr__(self):
-        return f'<Planets {self.name}>'
-    
-    def serialize(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "gravity": self.gravity,
-            "population": self.population,
-            "climate": self.climate
-        }
-    
-
-class Starships(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
-    model = db.Column(db.String(50), nullable=False)
-    length = db.Column(db.Numeric(25,0))
-    pilots = db.Column(db.String(50))
-
-    def __repr__(self):
-        return f'<Starships {self.name}'
-    
-    def serialize(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "model": self.model,
-            "length": self.length,
-            "pilots": self.pilots
-        }
-
-class Favorites(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, unique=True, nullable=False)
-    favorite_id = db.Column(db.Integer, unique=False)
-    favorite_type = db.Column(db.String(100), unique=False)
-
-    def __repr__(self):
-        return f'<Favorite {self.id}>'
+    def __init__(self, people_id, user_id):
+        self.people_id = people_id
+        self.user_id = user_id
 
     def serialize(self):
+        people = People.query.get(self.people_id)
+        user = User.query.get(self.user_id)
         return {
             "id": self.id,
+            "people_id": self.people_id,
+            "People" : people.name,
             "user_id": self.user_id,
-            "favorite_id": self.favorite_id,
-            "favorite_type": self.favorite_type
-            # do not serialize the password, it's a security breach
+            "User" : user.username
+        }
+
+class Planet(db.Model):
+    __tablename__ = 'Planet'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), unique=False, nullable=False)
+    url = db.Column(db.String(80), unique=False, nullable=False)
+    favplanet = db.relationship('FavPlanet', backref="Planet", lazy=True)  
+
+    def __repr__(self):
+        return '<Planets %r>' % self.name
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "url": self.url
+        }
+
+class FavPlanet(db.Model):
+    __tablename__ = 'FavPlanet'
+    id = db.Column(db.Integer, primary_key=True)
+    idPlanet = db.Column(db.Integer, db.ForeignKey("Planet.id"), nullable=False)
+    idUser = db.Column(db.Integer, db.ForeignKey("User.id"), nullable=False)
+
+    def __init__(self, idPlanet, idUser):
+        self.idPlanet = idPlanet
+        self.idUser = idUser
+
+    def serialize(self):
+        planet = Planet.query.get(self.idPlanet)
+        user = User.query.get(self.idUser)
+        return {
+            "id": self.id,
+            "idPlanet": self.idPlanet,
+            "Planet" : planet.name,
+            "idUser": self.idUser,
+            "User" : user.username
         }
